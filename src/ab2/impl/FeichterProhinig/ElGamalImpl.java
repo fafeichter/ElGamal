@@ -1,4 +1,4 @@
-package ab2.impl;
+package ab2.impl.FeichterProhinig;
 
 import ab2.ElGamal;
 
