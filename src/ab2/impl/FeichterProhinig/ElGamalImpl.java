@@ -39,7 +39,7 @@ public class ElGamalImpl implements ElGamal {
 		BigInteger g = getGenerator(p);
 
 		// d = random number in {2, ..., p - 2}
-		BigInteger d = getRandomNumberInRange(p.subtract(BigInteger.ONE));
+		BigInteger d = getRandomNumberInRange(p.subtract(ONE));
 
 		// e = g ^ a mod p
 		BigInteger e = g.modPow(d, p);
@@ -63,13 +63,33 @@ public class ElGamalImpl implements ElGamal {
 
 	@Override
 	public byte[] encrypt(byte[] data) {
-		// TODO Auto-generated method stub
+		BigInteger p = publicKey.getP();
+		BigInteger g = publicKey.getG();
+		BigInteger e = publicKey.getE();
+		
+		
+		BigInteger m = new BigInteger(data);
+		BigInteger d = privateKey.getD();
+
+		// r = another random number in {2, ..., p - 2}
+		BigInteger r = getRandomNumberInRange(p.subtract(BigInteger.ONE));
+
+	    BigInteger c1 = g.modPow(r, p);
+	    
+	    // m *( e^r mod p)
+	    BigInteger c2 = m.multiply(e.modPow(r, p)).mod(p);
+		
+//        BigInteger mshould = c2.multiply(c1.modPow(p.subtract(d).subtract(ONE),p)).mod(p);
+	    BigInteger mshould = c2.multiply(c1.modPow(d.modInverse(m), p)).mod(p);
+
+
+        System.out.println(mshould.equals(m));
+				
 		return null;
 	}
 
 	@Override
 	public byte[] decrypt(byte[] data) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -84,7 +104,7 @@ public class ElGamalImpl implements ElGamal {
 		// TODO Auto-generated method stub
 		return null;
 	}
-
+	
 	/**
 	 * Calculates a strong prime number with the specified numBits. A prime number p
 	 * is a strong prime number if it has the form p = 2 * q + 1 with q = prime
@@ -149,4 +169,5 @@ public class ElGamalImpl implements ElGamal {
 
 		return a;
 	}
+
 }
