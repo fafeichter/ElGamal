@@ -24,13 +24,13 @@ public class ElGamalTest {
 	private static ElGamal elGamal = new ElGamalImpl();
 
 	/**
-	 * Kleine Schlï¿½ssellï¿½nge, um die Zahlen faktorisieren zu kï¿½nnen. Wird nur beim
+	 * Kleine Schlüssellänge, um die Zahlen faktorisieren zu können. Wird nur beim
 	 * Initialisierungstest verwendet
 	 */
 	private static int KEYLENGTH_SMALL = 56;
 
 	/**
-	 * Die Schlï¿½ssellï¿½nge fï¿½r die restlichen Tests. Es wird hier auf jeden Fall mit
+	 * Die Schlüssellänge für die restlichen Tests. Es wird hier auf jeden Fall mit
 	 * Vielfachen von 8 getestet.
 	 */
 	private static int KEYLENGTH = 1024;
@@ -41,12 +41,12 @@ public class ElGamalTest {
 	private static int TESTCOUNT_INIT = 10;
 
 	/**
-	 * Gibt an, wie viele kurze Nachrichten verschlï¿½sselt werden
+	 * Gibt an, wie viele kurze Nachrichten verschlüsselt werden
 	 */
 	private static int TESTCOUNT_ENC_SHORT = 1000;
 
 	/**
-	 * Gibt an, wie viele lange Nachrichten verschlï¿½sselt werden
+	 * Gibt an, wie viele lange Nachrichten verschlüsselt werden
 	 */
 	private static int TESTCOUNT_ENC_LONG = 50;
 
@@ -56,14 +56,14 @@ public class ElGamalTest {
 	private static int TESTCOUNT_SIGN = 1000;
 
 	/**
-	 * Gibt an, wie oft bei jedem Test die Schlï¿½sselkomponenten neu initialisiert
-	 * werden. Wenn man den Wert erhï¿½ht, sollte man es nicht eilig haben :)
+	 * Gibt an, wie oft bei jedem Test die Schlüsselkomponenten neu initialisiert
+	 * werden. Wenn man den Wert erhöht, sollte man es nicht eilig haben :)
 	 */
 	private static int TESTCOUNT_REPEAT = 1;
 
 	@BeforeClass
 	public static void initElGamal() {
-		System.out.println("Starte Initialisierung des Schlï¿½sselmaterials");
+		System.out.println("Starte Initialisierung des Schlüsselmaterials");
 		elGamal.init(KEYLENGTH);
 		System.out.println("Initialisierung beendet");
 	}
@@ -80,7 +80,7 @@ public class ElGamalTest {
 
 			BigInteger p = pub.getP();
 
-			// Bitlï¿½nge muss passen
+			// Bitlänge muss passen
 			assertEquals(p.bitLength(), KEYLENGTH_SMALL);
 
 			List<Long> factors = primeFactors(p.subtract(BigInteger.ONE).longValue());
@@ -99,7 +99,7 @@ public class ElGamalTest {
 			BigInteger res = g.modPow(BigInteger.valueOf(factors.get(1)), p).modPow(BigInteger.valueOf(2), p);
 			assertEquals(BigInteger.ONE, res.abs());
 
-			// Teste, ob der private und der ï¿½ffentliche Teil zusammen passen
+			// Teste, ob der private und der öffentliche Teil zusammen passen
 			assertNotEquals(BigInteger.ZERO, priv.getD());
 			assertNotEquals(BigInteger.ONE, priv.getD());
 			assertNotEquals(p.subtract(BigInteger.ONE), priv.getD());
@@ -112,7 +112,7 @@ public class ElGamalTest {
 	public void testEncryptionShort_2() {
 
 		for (int rep = 0; rep < TESTCOUNT_REPEAT; rep++) {
-			// Falls wir hï¿½ufiger als 1x testen, dann elGamal neu initialisieren
+			// Falls wir häufiger als 1x testen, dann elGamal neu initialisieren
 			if (rep > 0) {
 				initElGamal();
 			}
@@ -133,7 +133,7 @@ public class ElGamalTest {
 	@Test
 	public void testEncryptionLong_2() {
 		for (int rep = 0; rep < TESTCOUNT_REPEAT; rep++) {
-			// Falls wir hï¿½ufiger als 1x testen, dann elGamal neu initialisieren
+			// Falls wir häufiger als 1x testen, dann elGamal neu initialisieren
 			if (rep > 0) {
 				initElGamal();
 			}
@@ -154,7 +154,7 @@ public class ElGamalTest {
 	@Test
 	public void testEncryptionCipherSize_2() {
 		for (int rep = 0; rep < TESTCOUNT_REPEAT; rep++) {
-			// Falls wir hï¿½ufiger als 1x testen, dann elGamal neu initialisieren
+			// Falls wir häufiger als 1x testen, dann elGamal neu initialisieren
 			if (rep > 0) {
 				initElGamal();
 			}
@@ -172,29 +172,29 @@ public class ElGamalTest {
 	}
 
 	private void testElGamalEnc(byte[] data, Random r, boolean checkSize) {
-		// Chiffrate mï¿½ssen unterschiedlich sein
+		// Chiffrate müssen unterschiedlich sein
 		byte[] cipher1 = elGamal.encrypt(data);
 		byte[] cipher2 = elGamal.encrypt(data);
 		assertEquals(false, Arrays.equals(cipher1, cipher2));
 
-		// Entschlï¿½sselt muss es wieder das gleiche sein
+		// Entschlüsselt muss es wieder das gleiche sein
 		byte[] decipher1 = elGamal.decrypt(cipher1);
 		byte[] decipher2 = elGamal.decrypt(cipher2);
 		assertArrayEquals(decipher1, decipher2);
 
 		if (checkSize) {
-			// Inputlï¿½nge ist ein Byte kï¿½rzer als der Schlï¿½ssel (damit ist m<p)
+			// Inputlänge ist ein Byte kürzer als der Schlüssel (damit ist m<p)
 			int optimalInputBlockLength = KEYLENGTH / 8 - 1;
-			// Optimal ist ein Chiffratblock genau 2*Schlï¿½ssellï¿½nge
+			// Optimal ist ein Chiffratblock genau 2*Schlüssellänge
 			int optimalCipherBlockLength = KEYLENGTH / 8 * 2;
 
-			// Bestimme die Anzahl der Inputblï¿½cke
+			// Bestimme die Anzahl der Inputblöcke
 			int numInputBlocks = data.length / optimalInputBlockLength;
 			if (data.length % optimalInputBlockLength != 0) {
 				numInputBlocks++;
 			}
 
-			// Erwartete Lï¿½nge des Chiffrats
+			// Erwartete Länge des Chiffrats
 			int expectedCipherSize = numInputBlocks * optimalCipherBlockLength;
 			assertEquals(expectedCipherSize, cipher1.length);
 		}
@@ -219,7 +219,7 @@ public class ElGamalTest {
 	@Test
 	public void testSignature_2() {
 		for (int rep = 0; rep < TESTCOUNT_REPEAT; rep++) {
-			// Falls wir hï¿½ufiger als 1x testen, dann elGamal neu initialisieren
+			// Falls wir häufiger als 1x testen, dann elGamal neu initialisieren
 			if (rep > 0) {
 				initElGamal();
 			}
@@ -234,12 +234,12 @@ public class ElGamalTest {
 
 				byte[] sign = elGamal.sign(data);
 
-				// Da der Randomisierer mitgesendet wird, muss die Lï¿½nge der Signatur genau der
-				// doppelten Bitlï¿½nge von p entsprechen
+				// Da der Randomisierer mitgesendet wird, muss die Länge der Signatur genau der
+				// doppelten Bitlänge von p entsprechen
 				assertEquals(2 * KEYLENGTH / 8, sign.length);
 
 				if (r.nextBoolean()) {
-					// Keine ï¿½nderung der Signatur/Daten
+					// Keine Änderung der Signatur/Daten
 
 					assertEquals(true, elGamal.verify(data, sign));
 				} else {
