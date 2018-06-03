@@ -2,6 +2,7 @@ package ab2.impl.FeichterProhinig;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 import ab2.ElGamal;
 
@@ -13,6 +14,8 @@ public class ElGamalImpl implements ElGamal {
 	private static final BigInteger ZERO = BigInteger.ZERO;
 	private static final BigInteger ONE = BigInteger.ONE;
 	private static final BigInteger TWO = BigInteger.valueOf(2);
+	private static final int BYTE_SIZE = Byte.SIZE;
+
 
 	/**
 	 * strong random number generator
@@ -24,6 +27,12 @@ public class ElGamalImpl implements ElGamal {
 	 */
 	private static final int CERTAINTY = 10;
 
+	/**
+	 * Padding is used because of the possible different length of decrypted blocks
+	 */
+	private static final byte[] PADDING = { 0, 0, 0, 0, 0, 0, 1 };
+	private static final int PADDING_SIZE = PADDING.length;
+	
 	/**
 	 * keys
 	 */
@@ -39,7 +48,7 @@ public class ElGamalImpl implements ElGamal {
 		BigInteger g = getGenerator(p);
 
 		// d = random number in {2, ..., p - 2}
-		BigInteger d = getRandomNumberInRange(p.subtract(ONE));
+		BigInteger d = getRandomNumberInRange(p.subtract(TWO));
 
 		// e = g ^ a mod p
 		BigInteger e = g.modPow(d, p);
@@ -66,31 +75,103 @@ public class ElGamalImpl implements ElGamal {
 		BigInteger p = publicKey.getP();
 		BigInteger g = publicKey.getG();
 		BigInteger e = publicKey.getE();
-		
-		
+			
 		BigInteger m = new BigInteger(data);
 		BigInteger d = privateKey.getD();
-
-		// r = another random number in {2, ..., p - 2}
-		BigInteger r = getRandomNumberInRange(p.subtract(BigInteger.ONE));
-
-	    BigInteger c1 = g.modPow(r, p);
-	    
-	    // m *( e^r mod p)
-	    BigInteger c2 = m.multiply(e.modPow(r, p)).mod(p);
 		
-//        BigInteger mshould = c2.multiply(c1.modPow(p.subtract(d).subtract(ONE),p)).mod(p);
-	    BigInteger mshould = c2.multiply(c1.modPow(d.modInverse(m), p)).mod(p);
+		// r = another random number in {2, ..., p - 2}
+		BigInteger r = getRandomNumberInRange(p.subtract(TWO));
 
+		// g ^ r mod p first part of cipher
+	    BigInteger c1 = g.modPow(r, p);
+	    byte[] c1Arr = c1.toByteArray();	   
+	    
+	    byte[] c2 = null;
 
-        System.out.println(mshould.equals(m));
-				
-		return null;
+		if (!isEmpty(data)) {
+			int originalLength = (int) Math.ceil(p.bitLength() / 2 / (double) BYTE_SIZE);
+			int blockLength = originalLength - PADDING_SIZE;
+			int cipherBlockLength = p.toByteArray().length;
+			int cipherLength = (int) Math.ceil(data.length / (double) blockLength) * cipherBlockLength;
+			
+			c2 = new byte[cipherLength];
+
+			int steps = 1;
+			do {
+				int start = (steps - 1);
+				byte[] messagePart = new byte[originalLength];
+				int copyLength = data.length - start * blockLength < blockLength ? data.length - start * blockLength
+						: blockLength;
+
+				System.arraycopy(PADDING, 0, messagePart, 0, PADDING_SIZE);
+				System.arraycopy(data, start * blockLength, messagePart, PADDING_SIZE, copyLength);
+
+				messagePart = Arrays.copyOfRange(messagePart, 0, copyLength + PADDING_SIZE);
+				byte[] cipherBlock = proccessByteBlockEnc(new BigInteger(messagePart), e, r, p).toByteArray();
+				System.arraycopy(cipherBlock, 0, c2,
+						start * cipherBlockLength + (cipherBlockLength - cipherBlock.length), cipherBlock.length);
+
+				steps++;
+			} while ((steps - 1) * blockLength < data.length);
+		}
+	    
+		byte[] cipher = new byte[c1Arr.length + c2.length + 1];
+		cipher[0] = (byte) (132 - c1Arr.length);
+		
+		System.arraycopy(c1Arr, 0, cipher, 1, c1Arr.length);
+		System.arraycopy(c2, 0, cipher, 1 + c1Arr.length, c2.length);
+
+		return cipher;	
 	}
 
 	@Override
 	public byte[] decrypt(byte[] data) {
-		return null;
+		BigInteger p = getPrivateKey().getP();
+		BigInteger d = getPrivateKey().getD();
+		
+		byte[] original = null;
+		int c1len = 132 - data[0];
+		
+		byte[] c1Arr = new byte[c1len];
+		byte[] cipher = new byte[data.length - c1len - 1];
+		
+		System.arraycopy(data, 1, c1Arr, 0, c1len);
+		System.arraycopy(data, 1 + c1len, cipher, 0, data.length - c1len - 1);
+
+		BigInteger c1 = new BigInteger(c1Arr);
+		
+		if (!isEmpty(cipher)) {
+			int originalLength = (int) Math.ceil(p.bitLength() / 2 / (double) BYTE_SIZE);
+			int blockLength = originalLength - PADDING_SIZE;
+			int dataBlockLength = p.toByteArray().length;
+			int messageLength = (int) Math.ceil(cipher.length / (double) dataBlockLength) * blockLength;
+			
+			original = new byte[messageLength];
+
+			int steps = 1;
+			int pos = 0;
+			do {
+				int start = steps - 1;
+				byte[] dataPart = Arrays.copyOfRange(cipher, start * dataBlockLength,
+						start * dataBlockLength + dataBlockLength);
+				byte[] messageBlock = proccessByteBlockDec(c1, new BigInteger(dataPart), d, p).toByteArray();
+
+				if (messageBlock[0] != 1) {
+					return new byte[0];
+				}
+
+				if (messageBlock.length < original.length) {
+					System.arraycopy(messageBlock, 0 + 1, original, pos, messageBlock.length - 1);
+				}
+
+				pos += messageBlock.length - 1;
+				steps++;
+			} while (steps * dataBlockLength <= cipher.length);
+
+			original = Arrays.copyOfRange(original, 0, pos);
+		}
+	
+		return original;
 	}
 
 	@Override
@@ -169,5 +250,29 @@ public class ElGamalImpl implements ElGamal {
 
 		return a;
 	}
-
+	
+	/**
+	 * Returns true if the specified array is empty, otherwise false.
+	 * 
+	 * @param arr
+	 *            Array
+	 * 
+	 * @return true if the specified array is empty, otherwise false
+	 */
+	private static boolean isEmpty(byte[] arr) {
+		return arr == null || arr.length == 0;
+	}
+	
+	private static BigInteger proccessByteBlockEnc(BigInteger m, BigInteger e, BigInteger r, BigInteger p) {
+		return m.multiply(e.modPow(r, p)).mod(p);
+	}
+	
+	private static BigInteger proccessByteBlockDec(BigInteger c1, BigInteger c2, BigInteger d, BigInteger p) {
+	    // inverse secret key
+	    BigInteger dec = c1.modPow(d, p);
+	    BigInteger dInv = dec.modInverse(p);
+	    
+		return dInv.multiply(c2).mod(p);
+	}
+	
 }
