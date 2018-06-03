@@ -1,6 +1,8 @@
 package ab2.impl.FeichterProhinig;
 
 import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -26,6 +28,11 @@ public class ElGamalImpl implements ElGamal {
 	 * measure uncertainty that a prime number is not really a prime number
 	 */
 	private static final int CERTAINTY = 10;
+	
+	/**
+	 * Used algorithm to calculate hash codes
+	 */
+	private static final String HASH_ALGORITHM = "SHA-256";
 
 	/**
 	 * Padding is used because of the possible different length of decrypted blocks
@@ -75,10 +82,7 @@ public class ElGamalImpl implements ElGamal {
 		BigInteger p = publicKey.getP();
 		BigInteger g = publicKey.getG();
 		BigInteger e = publicKey.getE();
-			
-		BigInteger m = new BigInteger(data);
-		BigInteger d = privateKey.getD();
-		
+				
 		// r = another random number in {2, ..., p - 2}
 		BigInteger r = getRandomNumberInRange(p.subtract(TWO));
 
@@ -126,8 +130,8 @@ public class ElGamalImpl implements ElGamal {
 
 	@Override
 	public byte[] decrypt(byte[] data) {
-		BigInteger p = getPrivateKey().getP();
-		BigInteger d = getPrivateKey().getD();
+		BigInteger p = privateKey.getP();
+		BigInteger d = privateKey.getD();
 		
 		byte[] original = null;
 		int c1len = 132 - data[0];
@@ -176,14 +180,62 @@ public class ElGamalImpl implements ElGamal {
 
 	@Override
 	public byte[] sign(byte[] message) {
-		// TODO Auto-generated method stub
-		return null;
+		BigInteger p = privateKey.getP();
+		BigInteger g = privateKey.getG();
+		BigInteger d = privateKey.getD();
+		
+		BigInteger k = getRandomNumberInRange(p.subtract(TWO));
+		
+		BigInteger r = g.modPow(k, p);
+		
+		BigInteger hM  = new BigInteger(toHash(message));
+		
+		BigInteger s = null;
+		
+		do {
+			s = (hM.subtract(d.multiply(r).mod(p))).multiply(k.modInverse(p)).mod(p.subtract(ONE));
+		} while(s.equals(ZERO));
+		
+		
+		byte[] rArr = r.toByteArray();		
+		byte[] sArr = s.toByteArray();
+		
+		byte[] sign = new byte[rArr.length + sArr.length + 1];
+		sign[0] = (byte) (132 - rArr.length);
+		
+		System.arraycopy(rArr, 0, sign, 1, rArr.length);
+		System.arraycopy(sArr, 0, sign, 1 + rArr.length, sArr.length);
+		
+		return sign;
 	}
 
 	@Override
 	public Boolean verify(byte[] message, byte[] signature) {
-		// TODO Auto-generated method stub
-		return null;
+		BigInteger p = publicKey.getP();
+		BigInteger g = publicKey.getG();
+		BigInteger e = publicKey.getE();
+		
+		int rArrlen = 132 - signature[0];
+		
+		byte[] rArr = new byte[rArrlen];
+		byte[] sArr = new byte[signature.length - rArrlen - 1];
+		
+		System.arraycopy(signature, 1, rArr, 0, rArrlen);
+		System.arraycopy(signature, 1 + rArrlen, sArr, 0, signature.length - rArrlen - 1);
+		
+		BigInteger r = new BigInteger(rArr);
+		BigInteger s = new BigInteger(sArr);
+		
+		if(ZERO.compareTo(r) > -1 || r.compareTo(p) > -1 || ZERO.compareTo(s) > -1 || r.compareTo(p.subtract(ONE)) > -1) {
+			return false;
+		}
+		
+		BigInteger mH = new BigInteger(toHash(message));
+		
+		BigInteger gHm = g.modPow(mH, p);
+		BigInteger eRrS = (e.modPow(r, p)).multiply(r.modPow(s, p)).mod(p);
+	
+		return gHm.equals(eRrS);
 	}
 	
 	/**
@@ -273,6 +325,26 @@ public class ElGamalImpl implements ElGamal {
 	    BigInteger dInv = dec.modInverse(p);
 	    
 		return dInv.multiply(c2).mod(p);
+	}
+	
+	/**
+	 * Returns a hash code value for the specified data array.
+	 * 
+	 * @param data
+	 *            array of bytes to calculate the hash for
+	 * @return hash code value for the specified data as array of bytes
+	 */
+	private static byte[] toHash(byte[] data) {
+		byte[] hash = null;
+
+		try {
+			MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
+			hash = digest.digest(data);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+
+		return hash;
 	}
 	
 }
